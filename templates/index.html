@@ -33,6 +33,10 @@
 .url{margin-top:10px;color:#ffd21c;font-weight:700;word-break:break-all}
 .warn{color:#aaa;font-size:14px;margin-top:8px}
 .back{margin:0 0 6px}
+.qblock{border-top:1px solid #333;margin-top:16px;padding-top:14px}
+.qblock:first-of-type{border-top:0;margin-top:0;padding-top:0}
+.qhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.small{padding:8px 12px;font-size:13px}
 </style>
 </head>
 <body>
@@ -74,19 +78,20 @@ async function list(){
   const box=document.getElementById("items");
   box.innerHTML=quizzes.length?quizzes.map(q=>`
     <div class="c quiz" onclick="location.hash='#/quiz/${q.id}'">
-      <div><b>${esc(q.title)}</b><div class="muted">Раундов: ${q.rounds}</div></div>
+      <div><b>${esc(q.title)}</b><div class="muted">Раундов: ${q.rounds} · вопросов: ${q.questions}</div></div>
       <span class="y">ОТКРЫТЬ →</span>
     </div>`).join(""):`<div class="c muted">Пока нет ни одного квиза. Нажмите «Добавить новый».</div>`;
 }
 
 /* ---------- 2. создание / редактирование ---------- */
 let draft;
-const emptyRound=()=>({question:"",options:["","","",""],correct:null});
+const emptyQuestion=()=>({question:"",options:["","","",""],correct:null});
+const emptyRound=()=>({questions:[emptyQuestion()]});
 
 async function editor(id){
   if(id){
     const q=await api("/api/quizzes/"+id);
-    draft={id,title:q.title,rounds:q.rounds.map(r=>({question:r.question,options:[...r.options],correct:r.correct}))};
+    draft={id,title:q.title,rounds:q.rounds.map(r=>({questions:r.questions.map(x=>({question:x.question,options:[...x.options],correct:x.correct}))}))};
   }else draft={id:null,title:"",rounds:[emptyRound()]};
   renderEditor();
 }
@@ -98,20 +103,27 @@ function renderEditor(msg=""){
       <h1>${draft.id?"Редактирование квиза":"Новый квиз"}</h1>
       <input class="field" id="title" placeholder="Название квиза" maxlength="80" value="${esc(draft.title)}" oninput="draft.title=this.value">
     </div>
-    ${draft.rounds.map((r,i)=>`
+    ${draft.rounds.map((rd,i)=>`
       <div class="c round">
         <h3>РАУНД ${i+1}</h3>
-        ${draft.rounds.length>1?`<button class="danger rm" onclick="removeRound(${i})">УДАЛИТЬ</button>`:""}
-        <input class="field" placeholder="Вопрос" maxlength="300" value="${esc(r.question)}" oninput="draft.rounds[${i}].question=this.value">
-        <p class="hint">Варианты ответа. Отметьте кружком правильный.</p>
-        ${r.options.map((o,j)=>`
-          <div class="opt">
-            <input type="radio" name="c${i}" ${r.correct===j?"checked":""} onchange="draft.rounds[${i}].correct=${j}" title="Правильный ответ">
-            <span class="letter">${LETTERS[j]}</span>
-            <input type="text" placeholder="Вариант ${LETTERS[j]}" maxlength="120" value="${esc(o)}" oninput="draft.rounds[${i}].options[${j}]=this.value">
-            ${r.options.length>2?`<button class="ghost" style="margin:0" onclick="removeOption(${i},${j})">✕</button>`:""}
+        ${draft.rounds.length>1?`<button class="danger rm" onclick="removeRound(${i})">УДАЛИТЬ РАУНД</button>`:""}
+        ${rd.questions.map((r,k)=>`
+          <div class="qblock">
+            <div class="qhead"><b>Вопрос ${k+1}</b>
+              ${rd.questions.length>1?`<button class="ghost small" onclick="removeQuestion(${i},${k})">УДАЛИТЬ ВОПРОС</button>`:""}
+            </div>
+            <input class="field" placeholder="Текст вопроса" maxlength="300" value="${esc(r.question)}" oninput="draft.rounds[${i}].questions[${k}].question=this.value">
+            <p class="hint">Варианты ответа. Отметьте кружком правильный.</p>
+            ${r.options.map((o,j)=>`
+              <div class="opt">
+                <input type="radio" name="c${i}_${k}" ${r.correct===j?"checked":""} onchange="draft.rounds[${i}].questions[${k}].correct=${j}" title="Правильный ответ">
+                <span class="letter">${LETTERS[j]}</span>
+                <input type="text" placeholder="Вариант ${LETTERS[j]}" maxlength="120" value="${esc(o)}" oninput="draft.rounds[${i}].questions[${k}].options[${j}]=this.value">
+                ${r.options.length>2?`<button class="ghost" style="margin:0" onclick="removeOption(${i},${k},${j})">✕</button>`:""}
+              </div>`).join("")}
+            ${r.options.length<8?`<button class="ghost small" style="margin:10px 0 0" onclick="addOption(${i},${k})">+ ВАРИАНТ</button>`:""}
           </div>`).join("")}
-        ${r.options.length<8?`<button class="ghost" style="margin:10px 0 0" onclick="addOption(${i})">+ ВАРИАНТ</button>`:""}
+        <button class="ghost" style="margin:14px 0 0" onclick="addQuestion(${i})">+ ДОБАВИТЬ ВОПРОС</button>
       </div>`).join("")}
     <div class="c">
       <div class="actions">
@@ -122,10 +134,12 @@ function renderEditor(msg=""){
     </div>`;
 }
 function addRound(){draft.rounds.push(emptyRound());renderEditor();window.scrollTo(0,document.body.scrollHeight)}
-function removeRound(i){if(confirm("Удалить раунд "+(i+1)+"?")){draft.rounds.splice(i,1);renderEditor()}}
-function addOption(i){draft.rounds[i].options.push("");renderEditor()}
-function removeOption(i,j){
-  const r=draft.rounds[i];r.options.splice(j,1);
+function removeRound(i){if(confirm("Удалить раунд "+(i+1)+" со всеми вопросами?")){draft.rounds.splice(i,1);renderEditor()}}
+function addQuestion(i){draft.rounds[i].questions.push(emptyQuestion());renderEditor()}
+function removeQuestion(i,k){if(confirm("Удалить вопрос "+(k+1)+"?")){draft.rounds[i].questions.splice(k,1);renderEditor()}}
+function addOption(i,k){draft.rounds[i].questions[k].options.push("");renderEditor()}
+function removeOption(i,k,j){
+  const r=draft.rounds[i].questions[k];r.options.splice(j,1);
   if(r.correct===j)r.correct=null;else if(r.correct>j)r.correct--;
   renderEditor();
 }
@@ -150,7 +164,7 @@ async function detail(id){
     <div class="c">
       <button class="ghost back" onclick="location.hash='#/'">← ВСЕ КВИЗЫ</button>
       <h1>${esc(q.title)}</h1>
-      <div class="muted">Раундов: ${q.rounds.length}</div>
+      <div class="muted">Раундов: ${q.rounds.length} · вопросов: ${q.rounds.reduce((n,r)=>n+r.questions.length,0)}</div>
       <div class="links">
         <button onclick="window.open('${hostUrl}','_blank')">СТРАНИЦА ВЕДУЩЕГО</button>
         <button onclick="window.open('/qr/${id}','_blank')">ВЫВЕСТИ QR ДЛЯ УЧАСТНИКОВ</button>
@@ -168,9 +182,12 @@ async function detail(id){
         <button class="danger" onclick="del('${id}')">УДАЛИТЬ КВИЗ</button>
       </div>
     </div>
-    ${q.rounds.map((r,i)=>`
-      <div class="c"><div class="y">РАУНД ${i+1}</div><h3 style="margin:6px 0 8px">${esc(r.question)}</h3>
-      ${r.options.map((o,j)=>`<div class="${j===r.correct?"y":"muted"}">${LETTERS[j]}. ${esc(o)}${j===r.correct?" ✓":""}</div>`).join("")}</div>`).join("")}`;
+    ${q.rounds.map((rd,i)=>`
+      <div class="c"><div class="y">РАУНД ${i+1}</div>
+      ${rd.questions.map((r,k)=>`
+        <div class="qblock"><div class="muted">Вопрос ${k+1}</div><h3 style="margin:4px 0 8px">${esc(r.question)}</h3>
+        ${r.options.map((o,j)=>`<div class="${j===r.correct?"y":"muted"}">${LETTERS[j]}. ${esc(o)}${j===r.correct?" ✓":""}</div>`).join("")}</div>`).join("")}
+      </div>`).join("")}`;
   let made=false;
   document.getElementById("hostQrBtn").onclick=function(){
     const box=document.getElementById("hostQr");

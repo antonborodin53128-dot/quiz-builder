@@ -42,7 +42,7 @@ async function load(){
   if(x.session!==session){name="";session="";localStorage.removeItem(KN);localStorage.removeItem(KS);show();return}
   // сервер перезапускался и забыл игрока — тихо регистрируем снова
   if(!x.registered)await post(`/api/q/${QID}/join`,{device,name});
-  r.textContent=`РАУНД ${x.round} ИЗ ${x.total}`;
+  r.textContent=x.label;
   q.textContent=x.question;
   s.textContent=x.voted?"Ответ принят ✓":x.open?"Голосование открыто":"Ждём ведущего…";
   aa.innerHTML="";

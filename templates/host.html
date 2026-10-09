@@ -76,7 +76,7 @@ tr:nth-child(1) .place{color:var(--yellow)}
   </div>
 
   <div class="card">
-    <h2>РАУНД</h2>
+    <h2 id="lbl">ВОПРОС</h2>
     <div class="round-nav">
       <button id="prev" onclick="step(-1)" aria-label="Предыдущий раунд">←</button>
       <select id="sel" onchange="rnd()"></select>
@@ -133,9 +133,11 @@ async function load(){
   const resp=await fetch(`${base}?k=${encodeURIComponent(KEY)}`);
   if(!resp.ok)return;
   const d=await resp.json();
-  if(sel.options.length!==d.total){sel.innerHTML="";for(let i=1;i<=d.total;i++)sel.add(new Option(`Раунд ${i} из ${d.total}`,i))}
-  total=d.total;current=d.round;sel.value=d.round;
-  prev.disabled=d.round<=1;next.disabled=d.round>=d.total;
+  const sig=d.items.map(i=>i.label).join("|");
+  if(sel.dataset.sig!==sig){sel.innerHTML="";d.items.forEach(i=>sel.add(new Option(i.label,i.n)));sel.dataset.sig=sig}
+  total=d.total;current=d.current;sel.value=d.current;
+  prev.disabled=d.current<=1;next.disabled=d.current>=d.total;
+  lbl.textContent=d.label;
   q.textContent=d.question;
   players.textContent=d.players;voted.textContent=d.voted;
   tog.textContent=d.open?"ЗАКРЫТЬ ГОЛОСОВАНИЕ":"ОТКРЫТЬ ГОЛОСОВАНИЕ";

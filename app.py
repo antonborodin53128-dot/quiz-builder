@@ -30,10 +30,20 @@ LETTERS = "АБВГДЕЖЗ"
 
 # ---------- хранилище квизов ----------
 
+def migrate(data):
+    """Старый формат: раунд = один вопрос. Новый: раунд содержит список questions."""
+    for quiz in data.values():
+        quiz["rounds"] = [
+            r if "questions" in r else {"questions": [{"question": r["question"], "options": r["options"], "correct": r["correct"]}]}
+            for r in quiz["rounds"]
+        ]
+    return data
+
+
 def load_quizzes():
     try:
         with open(QUIZ_FILE, encoding="utf-8") as f:
-            return json.load(f)
+            return migrate(json.load(f))
     except (FileNotFoundError, json.JSONDecodeError):
         return {}
 
@@ -49,6 +59,26 @@ QUIZZES = load_quizzes()
 GAMES = {}  # quiz_id -> состояние игры (в памяти)
 
 
+def clean_question(r, where):
+    question = str(r.get("question", "")).strip()[:300]
+    raw = [str(o).strip()[:120] for o in (r.get("options") or [])]
+    correct_raw = r.get("correct")
+    # индекс правильного ответа считаем по исходному списку, пустые варианты отбрасываем
+    options, correct = [], None
+    for idx, o in enumerate(raw[:MAX_OPTIONS]):
+        if o:
+            if idx == correct_raw:
+                correct = len(options)
+            options.append(o)
+    if not question:
+        return None, f"{where}: введите вопрос"
+    if len(options) < MIN_OPTIONS:
+        return None, f"{where}: нужно минимум {MIN_OPTIONS} варианта ответа"
+    if correct is None:
+        return None, f"{where}: отметьте правильный ответ"
+    return {"question": question, "options": options, "correct": correct}, None
+
+
 def clean_quiz(x):
     """Проверяет и нормализует квиз из запроса. Возвращает (quiz, error)."""
     title = str(x.get("title", "")).strip()[:80]
@@ -56,26 +86,31 @@ def clean_quiz(x):
         return None, "Введите название квиза"
     rounds = []
     for i, r in enumerate(x.get("rounds") or [], 1):
-        question = str(r.get("question", "")).strip()[:300]
-        raw = [str(o).strip()[:120] for o in (r.get("options") or [])]
-        correct_raw = r.get("correct")
-        # индекс правильного ответа считаем по исходному списку, пустые варианты отбрасываем
-        options, correct = [], None
-        for idx, o in enumerate(raw[:MAX_OPTIONS]):
-            if o:
-                if idx == correct_raw:
-                    correct = len(options)
-                options.append(o)
-        if not question:
-            return None, f"Раунд {i}: введите вопрос"
-        if len(options) < MIN_OPTIONS:
-            return None, f"Раунд {i}: нужно минимум {MIN_OPTIONS} варианта ответа"
-        if correct is None:
-            return None, f"Раунд {i}: отметьте правильный ответ"
-        rounds.append({"question": question, "options": options, "correct": correct})
+        questions = []
+        for j, qq in enumerate(r.get("questions") or [], 1):
+            item, err = clean_question(qq, f"Раунд {i}, вопрос {j}")
+            if err:
+                return None, err
+            questions.append(item)
+        if not questions:
+            return None, f"Раунд {i}: добавьте хотя бы один вопрос"
+        rounds.append({"questions": questions})
     if not rounds:
         return None, "Добавьте хотя бы один раунд"
     return {"title": title, "rounds": rounds}, None
+
+
+def flat_questions(qid):
+    """Все вопросы подряд: (номер раунда, номер вопроса, вопросов в раунде, вопрос, подпись)."""
+    rounds = QUIZZES[qid]["rounds"]
+    out = []
+    for ri, r in enumerate(rounds, 1):
+        n = len(r["questions"])
+        for qi, qq in enumerate(r["questions"], 1):
+            # если раунд всего один — слово «раунд» участникам не показываем
+            label = f"ВОПРОС {qi} ИЗ {n}" if len(rounds) == 1 else f"РАУНД {ri} · ВОПРОС {qi} ИЗ {n}"
+            out.append((ri, qi, n, qq, label))
+    return out
 
 
 def public_quiz(qid):
@@ -90,7 +125,7 @@ def game(qid):
     if g is None:
         g = GAMES[qid] = {"r": 0, "open": False, "session": str(uuid.uuid4()), "players": {}, "votes": {}}
     # квиз могли отредактировать — не выходим за границы
-    g["r"] = min(g["r"], len(QUIZZES[qid]["rounds"]) - 1)
+    g["r"] = min(g["r"], len(flat_questions(qid)) - 1)
     return g
 
 
@@ -108,13 +143,13 @@ def check_host(qid):
 
 
 def leaderboard(qid):
-    q, g = QUIZZES[qid], GAMES[qid]
+    F, g = flat_questions(qid), GAMES[qid]
     scores = {d: 0 for d in g["players"]}
     for r, votes in g["votes"].items():
-        if r >= len(q["rounds"]):
+        if r >= len(F):
             continue
         for dev, c in votes.items():
-            if dev in scores and c == q["rounds"][r]["correct"]:
+            if dev in scores and c == F[r][3]["correct"]:
                 scores[dev] += 1
     return sorted(
         ({"name": g["players"][d], "score": s} for d, s in scores.items()),
@@ -200,7 +235,8 @@ def results_page(qid):
 @app.get("/api/quizzes")
 def quizzes_list():
     return jsonify(quizzes=[
-        {"id": i, "title": q["title"], "rounds": len(q["rounds"]), "host_key": q["host_key"]}
+        {"id": i, "title": q["title"], "rounds": len(q["rounds"]),
+         "questions": sum(len(r["questions"]) for r in q["rounds"]), "host_key": q["host_key"]}
         for i, q in QUIZZES.items()
     ])
 
@@ -251,14 +287,16 @@ def quiz_delete(qid):
 
 @app.get("/api/q/<qid>/state")
 def state(qid):
-    q = get_quiz_or_404(qid)
+    get_quiz_or_404(qid)
     d = request.args.get("device", "")
     with lock:
         g = game(qid)
+        F = flat_questions(qid)
         r = g["r"]
+        qq = F[r][3]
         return jsonify(
-            round=r + 1, total=len(q["rounds"]), open=g["open"],
-            question=q["rounds"][r]["question"], answers=q["rounds"][r]["options"],
+            label=F[r][4], round=F[r][0], total=len(F), open=g["open"],
+            question=qq["question"], answers=qq["options"],
             voted=d in g["votes"].get(r, {}), session=g["session"], registered=d in g["players"],
         )
 
@@ -279,7 +317,7 @@ def join(qid):
 
 @app.post("/api/q/<qid>/vote")
 def vote(qid):
-    q = get_quiz_or_404(qid)
+    get_quiz_or_404(qid)
     x = request.json or {}
     d = str(x.get("device", ""))
     try:
@@ -295,7 +333,7 @@ def vote(qid):
         r = g["r"]
         if d in g["votes"].setdefault(r, {}):
             return jsonify(ok=False, error="Вы уже проголосовали"), 409
-        if c not in range(len(q["rounds"][r]["options"])):
+        if c not in range(len(flat_questions(qid)[r][3]["options"])):
             return jsonify(ok=False), 400
         g["votes"][r][d] = c
     return jsonify(ok=True)
@@ -306,7 +344,7 @@ def leaders(qid):
     get_quiz_or_404(qid)
     with lock:
         g = game(qid)
-        return jsonify(round=g["r"] + 1, leaders=leaderboard(qid))
+        return jsonify(label=flat_questions(qid)[g["r"]][4], leaders=leaderboard(qid))
 
 
 # ---------- API: ведущий ----------
@@ -314,19 +352,23 @@ def leaders(qid):
 @app.get("/api/q/<qid>/admin")
 def admin_state(qid):
     check_host(qid)
-    q = QUIZZES[qid]
     with lock:
         g = game(qid)
+        F = flat_questions(qid)
         r = g["r"]
-        opts = q["rounds"][r]["options"]
-        counts = [0] * len(opts)
+        qq = F[r][3]
+        counts = [0] * len(qq["options"])
         for c in g["votes"].get(r, {}).values():
             if c < len(counts):
                 counts[c] += 1
+        multi_round = len(QUIZZES[qid]["rounds"]) > 1
+        items = [
+            {"n": i + 1, "label": (f"Раунд {f[0]} · вопрос {f[1]}" if multi_round else f"Вопрос {f[1]}")}
+            for i, f in enumerate(F)
+        ]
         return jsonify(
-            round=r + 1, total=len(q["rounds"]), open=g["open"],
-            question=q["rounds"][r]["question"], answers=opts,
-            correct=q["rounds"][r]["correct"], counts=counts,
+            label=F[r][4], current=r + 1, total=len(F), items=items, open=g["open"],
+            question=qq["question"], answers=qq["options"], correct=qq["correct"], counts=counts,
             players=len(g["players"]), voted=sum(counts), leaders=leaderboard(qid),
         )
 
@@ -334,7 +376,6 @@ def admin_state(qid):
 @app.post("/api/q/<qid>/admin/action")
 def admin_action(qid):
     check_host(qid)
-    q = QUIZZES[qid]
     x = request.json or {}
     a = x.get("action")
     with lock:
@@ -346,7 +387,7 @@ def admin_action(qid):
                 n = int(x["round"])
             except (KeyError, TypeError, ValueError):
                 return jsonify(ok=False), 400
-            g["r"] = max(0, min(len(q["rounds"]) - 1, n - 1))
+            g["r"] = max(0, min(len(flat_questions(qid)) - 1, n - 1))
             g["open"] = False
         elif a == "reset":
             GAMES[qid] = {"r": 0, "open": False, "session": str(uuid.uuid4()), "players": {}, "votes": {}}

@@ -78,7 +78,7 @@ async function load(){
     const n=d.leaders.length;
 
     // Пока участников нет — не пишем "после раунда 1".
-    document.getElementById("round").textContent = n ? "ПОСЛЕ РАУНДА "+d.round : "";
+    document.getElementById("round").textContent = n ? d.label : "";
 
     box.className="grid";
     // Всегда одна колонка: список прокручивается вниз колесом мыши.

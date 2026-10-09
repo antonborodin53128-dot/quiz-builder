@@ -2,96 +2,130 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0d0d0e">
 <link rel="stylesheet" href="/static/style.css">
 <title>Ведущий — {{ title }}</title>
 <style>
-:root{--bg:#0d0d0e;--card:#17171a;--line:#2a2a2e;--yellow:#ffd21c;--green:#52d273;--red:#ff6b6b;--muted:#9a9aa2}
-body{background:var(--bg)}
-.w{max-width:720px;padding:20px 16px 60px}
-.bar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}
-.eyebrow{color:var(--yellow);font-weight:900;font-size:13px;letter-spacing:.08em}
-.quiz-title{font-size:26px;font-weight:900;line-height:1.15;margin:4px 0 0}
-.qr-link{color:var(--muted);font-size:14px;text-decoration:none;white-space:nowrap;padding-top:2px}
+:root{--bg:#0d0d0e;--card:#17171a;--card2:#0f0f11;--line:#2a2a2e;--yellow:#ffd21c;--green:#52d273;--red:#ff6b6b;--muted:#9a9aa2;--btn:#26262b}
+*{box-sizing:border-box}
+body{background:var(--bg);-webkit-tap-highlight-color:transparent}
+button{margin:0;font-family:inherit;cursor:pointer;transition:filter .12s,transform .06s}
+button:active{transform:scale(.98);filter:brightness(.85)}
+.w{max-width:720px;margin:0 auto;padding:0 14px calc(120px + env(safe-area-inset-bottom))}
+
+/* верхняя панель */
+.top{position:sticky;top:0;z-index:5;background:rgba(13,13,14,.92);backdrop-filter:blur(8px);margin:0 -14px;padding:12px 14px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:12px}
+.top .name{min-width:0;flex:1}
+.eyebrow{color:var(--yellow);font-weight:900;font-size:11px;letter-spacing:.1em;white-space:nowrap}
+.quiz-title{font-size:18px;font-weight:900;line-height:1.2;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.top-right{display:flex;align-items:center;gap:14px;flex-shrink:0}
+.pill{display:inline-flex;align-items:center;gap:7px;padding:6px 12px;border-radius:999px;font-size:12px;font-weight:900;letter-spacing:.05em;background:var(--btn);color:var(--muted)}
+.pill:before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor}
+.pill.live{background:rgba(82,210,115,.15);color:var(--green)}
+.pill.live:before{animation:pulse 1.2s infinite}
+.pill.done{background:rgba(255,210,28,.12);color:var(--yellow)}
+@keyframes pulse{50%{opacity:.25}}
+.qr-link{color:var(--muted);font-size:14px;text-decoration:none;white-space:nowrap}
 .qr-link:hover{color:var(--yellow);text-decoration:underline}
 
-.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;margin-top:14px}
-.card h2{margin:0 0 14px;font-size:14px;letter-spacing:.08em;color:var(--muted);font-weight:800}
+/* карточки */
+.card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;margin-top:14px}
+.card h2{margin:0 0 14px;font-size:12px;letter-spacing:.1em;color:var(--muted);font-weight:800}
+.hero-head{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.label{color:var(--yellow);font-weight:900;font-size:13px;letter-spacing:.08em}
+.jumprow{margin-top:12px}
+.jump{background:var(--card2);color:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;width:100%}
+#q{font-size:clamp(24px,5vw,34px);line-height:1.2;margin:14px 0 20px;font-weight:900}
 
-.round-nav{display:grid;grid-template-columns:48px 1fr 48px;gap:10px;align-items:center}
-.round-nav button{margin:0;height:48px;border-radius:12px;font-size:20px;background:#26262b;color:#fff}
-.round-nav button:disabled{opacity:.35}
-.round-nav select{height:48px;border-radius:12px;font-size:17px;font-weight:700;text-align:center;text-align-last:center;background:#0f0f11;border:1px solid var(--line);color:#fff;width:100%}
-#q{font-size:clamp(22px,4vw,30px);line-height:1.2;margin:18px 0 0;font-weight:900}
+/* ответы с живыми полосами */
+.ans{position:relative;display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--line);border-radius:14px;margin-top:10px;background:var(--card2);overflow:hidden}
+.ans .afill{position:absolute;inset:0 auto 0 0;background:rgba(255,210,28,.18);transition:width .4s;z-index:0}
+.ans>*:not(.afill){position:relative;z-index:1}
+.ans .let{width:34px;height:34px;flex-shrink:0;border-radius:10px;background:var(--btn);display:flex;align-items:center;justify-content:center;font-weight:900}
+.ans .txt{flex:1;font-weight:700;font-size:17px;line-height:1.25;min-width:0}
+.ans .num{text-align:right;font-weight:900;font-size:18px;line-height:1.1}
+.ans .num small{display:block;color:var(--muted);font-size:12px;font-weight:700}
+.ans.right{border-color:rgba(82,210,115,.6)}
+.ans.right .afill{background:rgba(82,210,115,.2)}
+.ans.right .let{background:var(--green);color:#111}
 
-.stats{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
-.chip{background:#0f0f11;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:14px;color:var(--muted)}
-.chip b{color:#fff;font-size:16px;margin-left:4px}
+.progress{margin-top:18px}
+.progress .row{display:flex;justify-content:space-between;color:var(--muted);font-size:14px;font-weight:700}
+.progress .row b{color:#fff}
+.track{height:8px;background:var(--btn);border-radius:99px;margin-top:8px;overflow:hidden}
+.track i{display:block;height:100%;background:var(--yellow);border-radius:99px;transition:width .4s}
 
-.main-btn{display:block;width:100%;margin:18px 0 0;padding:18px;border-radius:14px;font-size:18px;font-weight:900;letter-spacing:.03em}
-.main-btn.open{background:var(--yellow);color:#111}
-.main-btn.close{background:var(--red);color:#111}
-.reset{display:block;margin:12px auto 0;background:none;color:var(--muted);font-size:13px;font-weight:600;padding:6px 10px}
-.reset:hover{color:var(--red)}
-
-.answer{margin-top:14px}
-.answer:first-of-type{margin-top:0}
-.answer .row{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
-.answer .name{font-weight:700}
-.answer .pct{color:var(--muted);font-weight:700;white-space:nowrap}
-.answer.right .name,.answer.right .pct{color:var(--green)}
-.bar-track{height:10px;background:#26262b;border-radius:99px;margin-top:7px;overflow:hidden}
-.bar-fill{height:100%;background:var(--yellow);border-radius:99px;transition:width .4s}
-.answer.right .bar-fill{background:var(--green)}
-
+/* лидеры */
 table{width:100%;border-collapse:collapse}
-td{padding:11px 4px;border-bottom:1px solid var(--line)}
+td{padding:12px 4px;border-bottom:1px solid var(--line);font-size:17px}
 tr:last-child td{border-bottom:0}
 td:last-child{text-align:right;font-weight:900}
-.place{color:var(--muted);display:inline-block;width:28px}
+.place{display:inline-block;width:30px;color:var(--muted);font-weight:900}
 tr:nth-child(1) .place{color:var(--yellow)}
+.more{display:block;width:100%;margin-top:10px;background:none;color:var(--muted);font-weight:700;padding:10px}
+.muted{color:var(--muted)}
 
-.remote-head{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;margin-bottom:0}
+/* пульт слайдов */
+.remote-head{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer}
 .remote-head h2{margin:0}
 .status{font-size:13px;font-weight:800;color:var(--muted)}
 .remote-body{display:none;margin-top:16px}
 .remote.open .remote-body{display:block}
 .remote-row{display:flex;gap:8px;flex-wrap:wrap}
-.remote-row input{flex:1;min-width:140px;padding:12px;background:#0f0f11;color:#fff;border:1px solid var(--line);border-radius:10px}
-.remote-row button{margin:0;background:#26262b;color:#fff}
+.remote-row input{flex:1;min-width:140px;padding:13px;background:var(--card2);color:#fff;border:1px solid var(--line);border-radius:10px;font-size:16px}
+.remote-row button{background:var(--btn);color:#fff;border-radius:10px;padding:13px 14px;font-weight:800}
 .remote-nav{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-.remote-nav button{margin:0;padding:18px 8px;border-radius:12px;font-weight:900;background:#26262b;color:#fff}
+.remote-nav button{padding:22px 8px;border-radius:14px;font-weight:900;font-size:16px;background:var(--btn);color:#fff}
 .remote-nav button:last-child{background:var(--yellow);color:#111}
-.muted{color:var(--muted)}
+
+.danger{width:100%;background:none;border:1px solid var(--line);color:var(--muted);border-radius:12px;padding:14px;font-weight:700}
+.danger:hover{border-color:var(--red);color:var(--red)}
+.hint{color:var(--muted);font-size:13px;text-align:center;margin-top:14px}
+
+/* нижняя панель действий */
+.actionbar{position:fixed;left:0;right:0;bottom:0;z-index:6;background:rgba(13,13,14,.95);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:12px 14px calc(12px + env(safe-area-inset-bottom))}
+.actionbar-in{max-width:720px;margin:0 auto;display:grid;grid-template-columns:58px 1fr 58px;gap:10px}
+.nav{height:62px;border-radius:16px;background:var(--btn);color:#fff;font-size:24px;font-weight:900}
+.nav:disabled{opacity:.3}
+.main{height:62px;border-radius:16px;font-size:17px;font-weight:900;letter-spacing:.03em;line-height:1.1;padding:0 10px}
+.main.open{background:var(--yellow);color:#111}
+.main.close{background:var(--red);color:#111}
+.main.next{background:var(--green);color:#111}
+.main:disabled{background:var(--btn);color:var(--muted)}
+.reopen{display:none;max-width:720px;margin:0 auto 10px;width:100%;background:none;color:var(--muted);font-weight:700;font-size:14px;padding:4px}
+.reopen.show{display:block}
+@media(max-width:420px){.main{font-size:15px;letter-spacing:0}.qr-link{font-size:13px}.quiz-title{font-size:16px}.ans .txt{font-size:16px}}
 </style>
 </head>
 <body>
 <div class="w">
-  <div class="bar">
-    <div>
+  <div class="top">
+    <div class="name">
       <div class="eyebrow">ПАНЕЛЬ ВЕДУЩЕГО</div>
       <div class="quiz-title">{{ title }}</div>
     </div>
-    <a class="qr-link" href="/qr/{{ qid }}" target="_blank" rel="noopener">QR для участников ↗</a>
+    <div class="top-right">
+      <a class="qr-link" href="/qr/{{ qid }}" target="_blank" rel="noopener">QR для участников ↗</a>
+    </div>
   </div>
 
   <div class="card">
-    <h2 id="lbl">ВОПРОС</h2>
-    <div class="round-nav">
-      <button id="prev" onclick="step(-1)" aria-label="Предыдущий раунд">←</button>
-      <select id="sel" onchange="rnd()"></select>
-      <button id="next" onclick="step(1)" aria-label="Следующий раунд">→</button>
+    <div class="hero-head">
+      <div id="lbl" class="label">ВОПРОС</div>
+      <span id="pill" class="pill">ЗАКРЫТО</span>
+    </div>
+    <div class="jumprow">
+      <select id="sel" class="jump" onchange="jump()" aria-label="Перейти к вопросу"></select>
     </div>
     <div id="q"></div>
-    <div class="stats">
-      <span class="chip">Участников <b id="players">0</b></span>
-      <span class="chip">Проголосовало <b id="voted">0</b></span>
+    <div id="answers"></div>
+    <div class="progress">
+      <div class="row"><span>Проголосовали <b id="voted">0</b> из <b id="players">0</b></span><span id="pct"></span></div>
+      <div class="track"><i id="prog" style="width:0"></i></div>
     </div>
-    <button id="tog" class="main-btn open" onclick="act('toggle')"></button>
-    <button class="reset" onclick="reset()">Сбросить игру</button>
   </div>
 
-  <div class="card"><h2>РЕЗУЛЬТАТЫ РАУНДА</h2><div id="res"></div></div>
   <div class="card"><h2>ТАБЛИЦА ЛИДЕРОВ</h2><div id="lead"></div></div>
 
   <div class="card remote" id="remote">
@@ -101,15 +135,27 @@ tr:nth-child(1) .place{color:var(--yellow)}
     </div>
     <div class="remote-body">
       <div class="remote-row">
-        <input id="pptLogin" placeholder="Логин пульта">
+        <input id="pptLogin" placeholder="Логин пульта" autocomplete="off">
         <button onclick="savePptLogin()">ПОДКЛЮЧИТЬ</button>
         <button onclick="resetPptLogin()">СБРОСИТЬ ЛОГИН</button>
       </div>
       <div class="remote-nav">
-        <button onclick="ppt('prev')">← ПРЕДЫДУЩИЙ СЛАЙД</button>
-        <button onclick="ppt('next')">СЛЕДУЮЩИЙ СЛАЙД →</button>
+        <button onclick="ppt('prev')">← СЛАЙД НАЗАД</button>
+        <button onclick="ppt('next')">СЛАЙД ВПЕРЁД →</button>
       </div>
     </div>
+  </div>
+
+  <div class="card"><h2>ИГРА</h2><button class="danger" onclick="reset()">Сбросить игру (удалить участников и очки)</button></div>
+  <div class="hint">На компьютере: Пробел — открыть/закрыть голосование, ← → — вопросы</div>
+</div>
+
+<div class="actionbar">
+  <button id="reopen" class="reopen" onclick="act('toggle')">Открыть голосование по этому вопросу заново</button>
+  <div class="actionbar-in">
+    <button id="prev" class="nav" onclick="step(-1)" aria-label="Предыдущий вопрос">←</button>
+    <button id="main" class="main open" onclick="mainAction()"></button>
+    <button id="next" class="nav" onclick="step(1)" aria-label="Следующий вопрос">→</button>
   </div>
 </div>
 
@@ -119,38 +165,79 @@ const KEY=new URLSearchParams(location.search).get("k")||"";
 const LETTERS="АБВГДЕЖЗ";
 const esc=s=>String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const base=`/api/q/${QID}/admin`;
-let total=0,current=1;
+let st=null,busy=false,showAll=false;
 
 async function act(a,e={}){
-  await fetch(`${base}/action?k=${encodeURIComponent(KEY)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:a,...e})});
+  if(busy)return;busy=true;
+  try{await fetch(`${base}/action?k=${encodeURIComponent(KEY)}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:a,...e})})}
+  finally{busy=false}
   load();
 }
-function rnd(){act("round",{round:+sel.value})}
-function step(d){const n=current+d;if(n>=1&&n<=total)act("round",{round:n})}
+function jump(){act("round",{round:+sel.value})}
+function step(d){if(!st)return;const n=st.current+d;if(n>=1&&n<=st.total)act("round",{round:n})}
+function mainAction(){
+  if(!st)return;
+  if(st.done)step(1);        // голосование закончено → следующий вопрос
+  else act("toggle");        // открыть / закрыть
+}
 function reset(){if(confirm("Удалить участников, голоса и очки?"))act("reset")}
 
-async function load(){
-  const resp=await fetch(`${base}?k=${encodeURIComponent(KEY)}`);
-  if(!resp.ok)return;
-  const d=await resp.json();
+function render(d){
+  st=d;
+  // подпись, вопрос, переход
+  lbl.textContent=d.label;q.textContent=d.question;
   const sig=d.items.map(i=>i.label).join("|");
   if(sel.dataset.sig!==sig){sel.innerHTML="";d.items.forEach(i=>sel.add(new Option(i.label,i.n)));sel.dataset.sig=sig}
-  total=d.total;current=d.current;sel.value=d.current;
-  prev.disabled=d.current<=1;next.disabled=d.current>=d.total;
-  lbl.textContent=d.label;
-  q.textContent=d.question;
-  players.textContent=d.players;voted.textContent=d.voted;
-  tog.textContent=d.open?"ЗАКРЫТЬ ГОЛОСОВАНИЕ":"ОТКРЫТЬ ГОЛОСОВАНИЕ";
-  tog.className="main-btn "+(d.open?"close":"open");
-  const t=Math.max(1,d.voted);
-  res.innerHTML=d.answers.map((x,i)=>{
-    const p=Math.round(d.counts[i]*100/t);
-    return `<div class="answer ${i===d.correct?"right":""}">
-      <div class="row"><span class="name">${LETTERS[i]}. ${esc(x)}${i===d.correct?" ✓":""}</span><span class="pct">${d.counts[i]} · ${p}%</span></div>
-      <div class="bar-track"><div class="bar-fill" style="width:${d.counts[i]*100/t}%"></div></div></div>`}).join("");
-  lead.innerHTML=d.leaders.length?"<table>"+d.leaders.map((x,i)=>`<tr><td><span class="place">${i+1}</span>${esc(x.name)}</td><td>${x.score}</td></tr>`).join("")+"</table>":"<span class=muted>Пока нет участников</span>";
+  sel.value=d.current;
+  // статус
+  pill.textContent=d.open?"ГОЛОСОВАНИЕ ИДЁТ":d.done?"ЗАВЕРШЕНО":"ЗАКРЫТО";
+  pill.className="pill "+(d.open?"live":d.done?"done":"");
+  // ответы
+  const total=Math.max(1,d.voted);
+  answers.innerHTML=d.answers.map((x,i)=>{
+    const p=Math.round(d.counts[i]*100/total);
+    return `<div class="ans ${i===d.correct?"right":""}"><div class="afill" style="width:${d.counts[i]*100/total}%"></div>
+      <div class="let">${LETTERS[i]}</div><div class="txt">${esc(x)}${i===d.correct?" ✓":""}</div>
+      <div class="num">${d.counts[i]}<small>${d.voted?p+"%":"—"}</small></div></div>`}).join("");
+  voted.textContent=d.voted;players.textContent=d.players;
+  const share=d.players?Math.round(d.voted*100/d.players):0;
+  pct.textContent=d.players?share+"%":"";prog.style.width=Math.min(100,share)+"%";
+  // нижняя панель
+  const last=d.current>=d.total;
+  prev.disabled=d.current<=1;next.disabled=last;
+  main.disabled=false;
+  if(d.open){main.textContent="ЗАКРЫТЬ ГОЛОСОВАНИЕ";main.className="main close"}
+  else if(d.done){
+    if(last){main.textContent="ВОПРОСЫ ЗАКОНЧИЛИСЬ";main.className="main";main.disabled=true}
+    else{main.textContent="СЛЕДУЮЩИЙ ВОПРОС →";main.className="main next"}
+  }else{main.textContent="ОТКРЫТЬ ГОЛОСОВАНИЕ";main.className="main open"}
+  reopen.classList.toggle("show",d.done&&!d.open);
+  // лидеры
+  const L=d.leaders,vis=showAll?L:L.slice(0,10);
+  lead.innerHTML=L.length?`<table>${vis.map((x,i)=>`<tr><td><span class="place">${i+1}</span>${esc(x.name)}</td><td>${x.score}</td></tr>`).join("")}</table>`
+    +(L.length>10?`<button class="more" onclick="showAll=!showAll;render(st)">${showAll?"Свернуть":"Показать всех ("+L.length+")"}</button>`:""):"<span class=muted>Пока нет участников. Покажите им QR-код.</span>";
+}
+async function load(){
+  try{
+    const r=await fetch(`${base}?k=${encodeURIComponent(KEY)}`,{cache:"no-store"});
+    if(r.ok)render(await r.json());
+  }catch(e){}
 }
 setInterval(load,1000);load();
+
+/* клавиши на компьютере */
+addEventListener("keydown",e=>{
+  if(["INPUT","SELECT","TEXTAREA"].includes(document.activeElement.tagName))return;
+  if(e.code==="Space"||e.code==="Enter"){e.preventDefault();mainAction()}
+  else if(e.code==="ArrowLeft")step(-1);
+  else if(e.code==="ArrowRight")step(1);
+});
+
+/* экран телефона не гаснет во время игры */
+let wake=null;
+async function keepAwake(){try{if("wakeLock" in navigator)wake=await navigator.wakeLock.request("screen")}catch(e){}}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")keepAwake()});
+keepAwake();
 
 /* Пульт презентаций */
 const pptLogin=document.getElementById("pptLogin"),pptStatus=document.getElementById("pptStatus");
@@ -171,7 +258,7 @@ function resetPptLogin(){
 }
 async function ppt(command){
   const login=activePptLogin;
-  if(!login){alert("Введите логин пульта и нажмите ПОДКЛЮЧИТЬ");return}
+  if(!login){document.getElementById("remote").classList.add("open");pptLogin.focus();return}
   try{await fetch("/api/presentation/command",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({login,command})})}catch(e){}
 }
 async function pptHeartbeat(){

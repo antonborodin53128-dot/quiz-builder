@@ -417,7 +417,7 @@ def admin_state(qid):
             for i, f in enumerate(F)
         ]
         return jsonify(
-            label=F[r][4], current=r + 1, total=len(F), items=items, open=g["open"],
+            label=F[r][4], current=r + 1, total=len(F), items=items, open=g["open"], done=r in g["closed"],
             question=qq["question"], answers=qq["options"], correct=qq["correct"], counts=counts,
             players=len(g["players"]), voted=sum(counts), leaders=leaderboard(qid),
         )

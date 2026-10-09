@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/static/style.css">
+<title>{{ title }}</title>
+</head>
+<body>
+<div class="w">
+  <div class="y">{{ title|upper }}</div>
+  <div id="j" class="c"><h1>Введи имя</h1><input id="n" placeholder="Имя или ник" maxlength="40"><button onclick="join()">ВОЙТИ</button></div>
+  <div id="g" class="c hide"><div id="r" class="y"></div><h1 id="q"></h1><p id="s" class="muted"></p><div id="aa"></div></div>
+</div>
+<script>
+const QID={{ qid|tojson }};
+const KD="dev", KN="name:"+QID, KS="session:"+QID;
+const LETTERS="АБВГДЕЖЗ";
+let device=localStorage.getItem(KD)||(crypto.randomUUID?crypto.randomUUID():Date.now()+"-"+Math.random());
+localStorage.setItem(KD,device);
+let name=localStorage.getItem(KN)||"";
+let session=localStorage.getItem(KS)||"";
+const post=(url,body)=>fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+function show(){j.classList.toggle("hide",!!name);g.classList.toggle("hide",!name)}
+async function join(){
+  const v=n.value.trim();if(!v)return;
+  const d=await(await post(`/api/q/${QID}/join`,{device,name:v})).json();
+  name=v;session=d.session;
+  localStorage.setItem(KN,name);localStorage.setItem(KS,session);
+  show();load();
+}
+async function vote(i){
+  const x=await post(`/api/q/${QID}/vote`,{device,choice:i});
+  const z=await x.json();
+  if(!x.ok)alert(z.error||"Ошибка");
+  load();
+}
+async function load(){
+  if(!name)return;
+  const x=await(await fetch(`/api/q/${QID}/state?device=${encodeURIComponent(device)}`)).json();
+  // ведущий сбросил игру — просим ввести имя заново
+  if(x.session!==session){name="";session="";localStorage.removeItem(KN);localStorage.removeItem(KS);show();return}
+  // сервер перезапускался и забыл игрока — тихо регистрируем снова
+  if(!x.registered)await post(`/api/q/${QID}/join`,{device,name});
+  r.textContent=`РАУНД ${x.round} ИЗ ${x.total}`;
+  q.textContent=x.question;
+  s.textContent=x.voted?"Ответ принят ✓":x.open?"Голосование открыто":"Ждём ведущего…";
+  aa.innerHTML="";
+  if(x.open&&!x.voted)x.answers.forEach((t,i)=>{
+    const b=document.createElement("button");
+    b.className="a";b.textContent=LETTERS[i]+"  "+t;b.onclick=()=>vote(i);aa.appendChild(b);
+  });
+}
+show();setInterval(load,1500);load();
+</script>
+</body>
+</html>

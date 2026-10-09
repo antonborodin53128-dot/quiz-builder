@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QR-код для участников</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<style>
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#0d0d0e;color:#fff;font-family:Arial,sans-serif}
+.wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:36px}
+.card{text-align:center;max-width:760px;width:100%}
+.brand{color:#ffd21c;font-weight:900;font-size:20px;margin-bottom:12px}
+h1{font-size:clamp(38px,6vw,78px);line-height:1;margin:0 0 18px;font-weight:900}
+.sub{font-size:clamp(18px,2vw,28px);color:#bbb;margin-bottom:26px}
+#qrcode{display:inline-block;background:#fff;padding:18px;border-radius:18px}
+#qrcode img,#qrcode canvas{display:block}
+.url{color:#ffd21c;font-weight:800;font-size:18px;margin-top:20px;word-break:break-all}
+</style>
+</head>
+<body>
+<div class="wrap">
+ <div class="card">
+  <div class="brand">{{ title|upper }}</div>
+  <h1>ПОДКЛЮЧАЙТЕСЬ К ИГРЕ</h1>
+  <div class="sub">Отсканируйте QR-код камерой телефона</div>
+  <div id="qrcode"></div>
+  <div class="url" id="url"></div>
+ </div>
+</div>
+<script>
+async function publicOrigin(){
+  if(!["localhost","127.0.0.1"].includes(location.hostname))return location.origin;
+  try{const d=await(await fetch("/api/info")).json();return location.protocol+"//"+d.lan_ip+(location.port?":"+location.port:"")}
+  catch(e){return location.origin}
+}
+(async function(){
+const playUrl=(await publicOrigin())+"/play/"+{{ qid|tojson }};
+document.getElementById("url").textContent=playUrl;
+if(window.QRCode)new QRCode(document.getElementById("qrcode"),{text:playUrl,width:360,height:360,correctLevel:QRCode.CorrectLevel.M});
+else document.getElementById("qrcode").textContent="QR-код не загрузился";
+})();
+</script>
+</body>
+</html>

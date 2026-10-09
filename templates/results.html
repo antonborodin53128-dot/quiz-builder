@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/static/style.css">
+<title>Таблица лидеров — {{ title }}</title>
+<style>
+html,body{min-height:100%;height:auto;margin:0;background:#0d0d0e;overflow-x:hidden;overflow-y:auto;scrollbar-width:none;-ms-overflow-style:none}
+html::-webkit-scrollbar,body::-webkit-scrollbar{display:none;width:0;height:0}
+.w{max-width:1600px;margin:auto;padding:28px 42px 70px;box-sizing:border-box;min-height:100%}
+.head{display:flex;justify-content:space-between;align-items:end;gap:20px;margin-bottom:24px}
+.title{font-size:clamp(38px,5vw,76px);font-weight:900;line-height:1;margin:10px 0}
+.round{font-size:clamp(18px,2vw,30px);color:#aaa;font-weight:700;white-space:nowrap}
+.grid{display:grid;grid-template-columns:1fr;gap:10px 24px}
+.player{display:grid;grid-template-columns:60px minmax(0,1fr) 70px 125px;align-items:center;min-height:58px;padding:8px 16px;background:#19191b;border:1px solid #333;border-radius:13px;box-sizing:border-box}
+.place{font-size:26px;font-weight:900;color:#ddd;display:flex;align-items:center;gap:8px}
+.cup{font-size:28px;line-height:1;display:inline-block}
+.gold .cup{filter:sepia(1) saturate(5) brightness(1.08)}
+.silver .cup{filter:grayscale(1) brightness(1.65)}
+.bronze .cup{filter:sepia(1) saturate(2.1) brightness(.82)}
+.name{font-size:clamp(18px,2vw,28px);font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.score{text-align:right;font-size:clamp(18px,2vw,28px);font-weight:900}
+.unit{color:#777;font-size:.52em}
+.empty{font-size:28px;color:#aaa;padding:50px 0}
+.player.gold{border-color:#d9ad22}.player.gold .place{color:#ffd21c}
+.player.silver{border-color:#8e949b}.player.silver .place{color:#d7dbe0}
+.player.bronze{border-color:#9b653b}.player.bronze .place{color:#c98955}
+
+/* Автокомпоновка по числу участников */
+.grid.cols2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.grid.cols3{grid-template-columns:repeat(3,minmax(0,1fr))}
+.grid.compact{gap:7px 18px}
+.grid.compact .player{min-height:45px;padding:5px 12px;grid-template-columns:45px minmax(0,1fr) 52px 90px}
+.grid.compact .place,.grid.compact .name,.grid.compact .score{font-size:19px}
+.grid.dense{gap:5px 14px}
+.grid.dense .player{min-height:36px;padding:3px 9px;grid-template-columns:38px minmax(0,1fr) 44px 72px;border-radius:9px}
+.grid.dense .place,.grid.dense .name,.grid.dense .score{font-size:15px}
+@media(max-width:800px){
+  html,body{overflow:auto}.w{padding:20px}.head{align-items:start;flex-direction:column}
+  .grid,.grid.cols2,.grid.cols3{grid-template-columns:1fr!important}
+}
+
+.trophycell{display:flex;justify-content:center;align-items:center}
+.trophy{--metal:#ffd21c;position:relative;width:24px;height:22px}
+.trophy .bowl{position:absolute;left:5px;top:1px;width:14px;height:11px;background:var(--metal);border-radius:2px 2px 8px 8px}
+.trophy .bowl:before,.trophy .bowl:after{content:"";position:absolute;top:1px;width:7px;height:8px;border:3px solid var(--metal);background:transparent}
+.trophy .bowl:before{left:-7px;border-right:0;border-radius:8px 0 0 8px}
+.trophy .bowl:after{right:-7px;border-left:0;border-radius:0 8px 8px 0}
+.trophy .stem{position:absolute;left:10px;top:11px;width:4px;height:6px;background:var(--metal)}
+.trophy .base{position:absolute;left:5px;bottom:1px;width:14px;height:4px;background:var(--metal);border-radius:2px}
+.trophy.gold{--metal:#ffd21c}
+.trophy.silver{--metal:#d7dbe0}
+.trophy.bronze{--metal:#c98955}
+
+
+.grid,.grid.cols2,.grid.cols3{grid-template-columns:1fr!important}
+.grid.compact .player,.grid.dense .player{min-height:58px;padding:8px 16px;grid-template-columns:60px minmax(0,1fr) 70px 125px}
+.grid.compact .place,.grid.compact .name,.grid.compact .score,
+.grid.dense .place,.grid.dense .name,.grid.dense .score{font-size:clamp(18px,2vw,28px)}
+</style>
+</head>
+<body>
+<div class="w">
+  <div class="head">
+    <div><div class="y">{{ title|upper }}</div><div class="title">ТАБЛИЦА ЛИДЕРОВ</div></div>
+    <div id="round" class="round"></div>
+  </div>
+  <div id="players" class="grid"></div>
+</div>
+<script>
+const QID={{ qid|tojson }};
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
+async function load(){
+  try{
+    const d=await (await fetch("/api/q/"+QID+"/leaders",{cache:"no-store"})).json();
+    const box=document.getElementById("players");
+    const n=d.leaders.length;
+
+    // Пока участников нет — не пишем "после раунда 1".
+    document.getElementById("round").textContent = n ? "ПОСЛЕ РАУНДА "+d.round : "";
+
+    box.className="grid";
+    // Всегда одна колонка: список прокручивается вниз колесом мыши.
+
+    if(!n){
+      box.innerHTML='<div class="empty">Участники пока не подключились</div>';
+      return;
+    }
+
+    const scoreLevels=[...new Set(d.leaders.map(x=>x.score))].slice(0,3);
+    let prevScore=null, place=0;
+    box.innerHTML=d.leaders.map((x,i)=>{
+      if(x.score!==prevScore){place=i+1;prevScore=x.score}
+      const tier=scoreLevels.indexOf(x.score);
+      const medal=tier===0?"gold":tier===1?"silver":tier===2?"bronze":"";
+      return `<div class="player ${medal}">
+        <div class="place"><span>${place}</span></div>
+        <div class="name">${esc(x.name)}</div>
+        <div class="trophycell">${tier>=0 && tier<3 ? `<span class="trophy ${medal}"><i class="bowl"></i><i class="stem"></i><i class="base"></i></span>` : ""}</div>
+        <div class="score">${x.score} <span class="unit">БАЛЛ.</span></div>
+      </div>`
+    }).join("");
+  }catch(e){}
+}
+setInterval(load,1000);load();
+</script>
+</body></html>

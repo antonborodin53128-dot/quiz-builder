@@ -1,0 +1,7 @@
+services:
+  - type: web
+    name: quiz-builder
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    # Один воркер: состояние игры хранится в памяти процесса.
+    startCommand: gunicorn -w 1 --threads 8 app:app

@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="/static/style.css">
+<title>Конструктор квизов</title>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<style>
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.top h1{margin:0;font-size:30px}
+.quiz{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;cursor:pointer}
+.quiz:hover{border-color:#ffd21c}
+.quiz b{font-size:20px}
+.ghost{background:#333;color:#fff}
+.danger{background:#7a2323;color:#fff}
+.round{position:relative}
+.round h3{margin:0 0 12px;color:#ffd21c}
+.round .rm{position:absolute;right:14px;top:14px}
+.field{width:100%;box-sizing:border-box}
+.opt{display:flex;align-items:center;gap:8px;margin-top:8px}
+.opt input[type=text]{flex:1;min-width:0}
+.opt input[type=radio]{width:20px;height:20px;accent-color:#ffd21c;margin:0}
+.letter{width:24px;font-weight:900;color:#ffd21c}
+.hint{color:#aaa;font-size:14px;margin:6px 0 0}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.err{color:#ff6b6b;font-weight:700;margin-top:12px;min-height:20px}
+.links{display:grid;gap:10px;margin-top:14px}
+.links button{padding:16px;font-size:17px;margin:0}
+.qrbox{text-align:center;margin-top:16px}
+#qrcode{display:inline-block;background:#fff;padding:12px;border-radius:12px}
+#qrcode img,#qrcode canvas{display:block}
+.url{margin-top:10px;color:#ffd21c;font-weight:700;word-break:break-all}
+.warn{color:#aaa;font-size:14px;margin-top:8px}
+.back{margin:0 0 6px}
+</style>
+</head>
+<body>
+<div class="w">
+  <div class="y">КОНСТРУКТОР КВИЗОВ</div>
+  <div id="app"></div>
+</div>
+
+<script>
+const app=document.getElementById("app");
+const LETTERS="АБВГДЕЖЗ";
+async function publicOrigin(){
+  if(!["localhost","127.0.0.1"].includes(location.hostname))return location.origin;
+  try{const d=await(await fetch("/api/info")).json();return location.protocol+"//"+d.lan_ip+(location.port?":"+location.port:"")}
+  catch(e){return location.origin}
+}
+const esc=s=>String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const api=async(url,method="GET",body)=>{
+  const r=await fetch(url,{method,headers:{"Content-Type":"application/json"},body:body?JSON.stringify(body):undefined});
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.error||"Ошибка "+r.status);
+  return d;
+};
+
+/* ---------- маршрутизация ---------- */
+function route(){
+  const h=location.hash.replace(/^#\/?/,"").split("/");
+  if(h[0]==="new")return editor(null);
+  if(h[0]==="edit"&&h[1])return editor(h[1]);
+  if(h[0]==="quiz"&&h[1])return detail(h[1]);
+  return list();
+}
+addEventListener("hashchange",route);
+
+/* ---------- 1. список квизов ---------- */
+async function list(){
+  app.innerHTML=`<div class="c"><div class="top"><h1>Мои квизы</h1><button onclick="location.hash='#/new'">+ ДОБАВИТЬ НОВЫЙ</button></div></div><div id="items"></div>`;
+  const {quizzes}=await api("/api/quizzes");
+  const box=document.getElementById("items");
+  box.innerHTML=quizzes.length?quizzes.map(q=>`
+    <div class="c quiz" onclick="location.hash='#/quiz/${q.id}'">
+      <div><b>${esc(q.title)}</b><div class="muted">Раундов: ${q.rounds}</div></div>
+      <span class="y">ОТКРЫТЬ →</span>
+    </div>`).join(""):`<div class="c muted">Пока нет ни одного квиза. Нажмите «Добавить новый».</div>`;
+}
+
+/* ---------- 2. создание / редактирование ---------- */
+let draft;
+const emptyRound=()=>({question:"",options:["","","",""],correct:null});
+
+async function editor(id){
+  if(id){
+    const q=await api("/api/quizzes/"+id);
+    draft={id,title:q.title,rounds:q.rounds.map(r=>({question:r.question,options:[...r.options],correct:r.correct}))};
+  }else draft={id:null,title:"",rounds:[emptyRound()]};
+  renderEditor();
+}
+
+function renderEditor(msg=""){
+  app.innerHTML=`
+    <div class="c">
+      <button class="ghost back" onclick="location.hash='#/${draft.id?"quiz/"+draft.id:""}'">← НАЗАД</button>
+      <h1>${draft.id?"Редактирование квиза":"Новый квиз"}</h1>
+      <input class="field" id="title" placeholder="Название квиза" maxlength="80" value="${esc(draft.title)}" oninput="draft.title=this.value">
+    </div>
+    ${draft.rounds.map((r,i)=>`
+      <div class="c round">
+        <h3>РАУНД ${i+1}</h3>
+        ${draft.rounds.length>1?`<button class="danger rm" onclick="removeRound(${i})">УДАЛИТЬ</button>`:""}
+        <input class="field" placeholder="Вопрос" maxlength="300" value="${esc(r.question)}" oninput="draft.rounds[${i}].question=this.value">
+        <p class="hint">Варианты ответа. Отметьте кружком правильный.</p>
+        ${r.options.map((o,j)=>`
+          <div class="opt">
+            <input type="radio" name="c${i}" ${r.correct===j?"checked":""} onchange="draft.rounds[${i}].correct=${j}" title="Правильный ответ">
+            <span class="letter">${LETTERS[j]}</span>
+            <input type="text" placeholder="Вариант ${LETTERS[j]}" maxlength="120" value="${esc(o)}" oninput="draft.rounds[${i}].options[${j}]=this.value">
+            ${r.options.length>2?`<button class="ghost" style="margin:0" onclick="removeOption(${i},${j})">✕</button>`:""}
+          </div>`).join("")}
+        ${r.options.length<8?`<button class="ghost" style="margin:10px 0 0" onclick="addOption(${i})">+ ВАРИАНТ</button>`:""}
+      </div>`).join("")}
+    <div class="c">
+      <div class="actions">
+        <button class="ghost" onclick="addRound()">+ ДОБАВИТЬ РАУНД</button>
+        <button onclick="save()">СОХРАНИТЬ</button>
+      </div>
+      <div class="err" id="err">${esc(msg)}</div>
+    </div>`;
+}
+function addRound(){draft.rounds.push(emptyRound());renderEditor();window.scrollTo(0,document.body.scrollHeight)}
+function removeRound(i){if(confirm("Удалить раунд "+(i+1)+"?")){draft.rounds.splice(i,1);renderEditor()}}
+function addOption(i){draft.rounds[i].options.push("");renderEditor()}
+function removeOption(i,j){
+  const r=draft.rounds[i];r.options.splice(j,1);
+  if(r.correct===j)r.correct=null;else if(r.correct>j)r.correct--;
+  renderEditor();
+}
+async function save(){
+  const body={title:draft.title,rounds:draft.rounds};
+  try{
+    const d=draft.id?await api("/api/quizzes/"+draft.id,"PUT",body):await api("/api/quizzes","POST",body);
+    location.hash="#/quiz/"+d.id;
+  }catch(e){
+    document.getElementById("err").textContent=e.message;
+  }
+}
+
+/* ---------- 3. страница квиза ---------- */
+async function detail(id){
+  let q;
+  try{q=await api("/api/quizzes/"+id)}catch(e){location.hash="#/";return}
+  const origin=await publicOrigin();
+  const hostUrl=`${origin}/host/${id}?k=${q.host_key}`;
+  const playUrl=`${origin}/play/${id}`;
+  app.innerHTML=`
+    <div class="c">
+      <button class="ghost back" onclick="location.hash='#/'">← ВСЕ КВИЗЫ</button>
+      <h1>${esc(q.title)}</h1>
+      <div class="muted">Раундов: ${q.rounds.length}</div>
+      <div class="links">
+        <button onclick="window.open('${hostUrl}','_blank')">СТРАНИЦА ВЕДУЩЕГО</button>
+        <button onclick="window.open('/qr/${id}','_blank')">ВЫВЕСТИ QR ДЛЯ УЧАСТНИКОВ</button>
+        <button class="ghost" id="hostQrBtn">QR ДЛЯ ВЕДУЩЕГО</button>
+      </div>
+      <div class="qrbox" id="hostQr" style="display:none">
+        <div class="y">QR ДЛЯ ВЕДУЩЕГО</div>
+        <p class="muted">Откройте с телефона ведущего. Никому не показывайте — по нему управляют игрой.</p>
+        <div id="qrcode"></div>
+        <div class="url">${esc(hostUrl)}</div>
+      </div>
+      <p class="warn">Ссылка для участников: ${esc(playUrl)}</p>
+      <div class="actions">
+        <button class="ghost" onclick="location.hash='#/edit/${id}'">РЕДАКТИРОВАТЬ</button>
+        <button class="danger" onclick="del('${id}')">УДАЛИТЬ КВИЗ</button>
+      </div>
+    </div>
+    ${q.rounds.map((r,i)=>`
+      <div class="c"><div class="y">РАУНД ${i+1}</div><h3 style="margin:6px 0 8px">${esc(r.question)}</h3>
+      ${r.options.map((o,j)=>`<div class="${j===r.correct?"y":"muted"}">${LETTERS[j]}. ${esc(o)}${j===r.correct?" ✓":""}</div>`).join("")}</div>`).join("")}`;
+  let made=false;
+  document.getElementById("hostQrBtn").onclick=function(){
+    const box=document.getElementById("hostQr");
+    const show=box.style.display==="none";
+    box.style.display=show?"block":"none";
+    this.textContent=show?"СКРЫТЬ QR ДЛЯ ВЕДУЩЕГО":"QR ДЛЯ ВЕДУЩЕГО";
+    if(show&&!made){made=true;
+      if(window.QRCode)new QRCode(document.getElementById("qrcode"),{text:hostUrl,width:240,height:240,correctLevel:QRCode.CorrectLevel.M});
+      else document.getElementById("qrcode").textContent="QR-код не загрузился";
+    }
+  };
+}
+async function del(id){
+  if(!confirm("Удалить квиз вместе с раундами? Это нельзя отменить."))return;
+  await api("/api/quizzes/"+id,"DELETE");
+  location.hash="#/";
+}
+
+route();
+</script>
+</body>
+</html>

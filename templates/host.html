@@ -5,78 +5,118 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/static/style.css">
 <title>Ведущий — {{ title }}</title>
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
-.qr-card{margin-top:18px;padding:18px;background:#19191b;border:1px solid #333;border-radius:16px;text-align:center}
-.qr-title{font-size:22px;font-weight:900;margin-bottom:6px}
-.qr-sub{color:#aaa;margin-bottom:14px}
-#qrcode{display:inline-block;background:#fff;padding:12px;border-radius:12px}
-#qrcode img,#qrcode canvas{display:block}
-.qr-url{margin-top:10px;color:#ffd21c;font-weight:700;word-break:break-all}
-.remote{margin-top:18px;padding-top:16px;border-top:1px solid #333}
+:root{--bg:#0d0d0e;--card:#17171a;--line:#2a2a2e;--yellow:#ffd21c;--green:#52d273;--red:#ff6b6b;--muted:#9a9aa2}
+body{background:var(--bg)}
+.w{max-width:720px;padding:20px 16px 60px}
+.bar{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;margin-bottom:18px}
+.eyebrow{color:var(--yellow);font-weight:900;font-size:13px;letter-spacing:.08em}
+.quiz-title{font-size:26px;font-weight:900;line-height:1.15;margin:4px 0 0}
+.qr-link{color:var(--muted);font-size:14px;text-decoration:none;white-space:nowrap;padding-top:2px}
+.qr-link:hover{color:var(--yellow);text-decoration:underline}
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;margin-top:14px}
+.card h2{margin:0 0 14px;font-size:14px;letter-spacing:.08em;color:var(--muted);font-weight:800}
+
+.round-nav{display:grid;grid-template-columns:48px 1fr 48px;gap:10px;align-items:center}
+.round-nav button{margin:0;height:48px;border-radius:12px;font-size:20px;background:#26262b;color:#fff}
+.round-nav button:disabled{opacity:.35}
+.round-nav select{height:48px;border-radius:12px;font-size:17px;font-weight:700;text-align:center;text-align-last:center;background:#0f0f11;border:1px solid var(--line);color:#fff;width:100%}
+#q{font-size:clamp(22px,4vw,30px);line-height:1.2;margin:18px 0 0;font-weight:900}
+
+.stats{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap}
+.chip{background:#0f0f11;border:1px solid var(--line);border-radius:999px;padding:8px 14px;font-size:14px;color:var(--muted)}
+.chip b{color:#fff;font-size:16px;margin-left:4px}
+
+.main-btn{display:block;width:100%;margin:18px 0 0;padding:18px;border-radius:14px;font-size:18px;font-weight:900;letter-spacing:.03em}
+.main-btn.open{background:var(--yellow);color:#111}
+.main-btn.close{background:var(--red);color:#111}
+.reset{display:block;margin:12px auto 0;background:none;color:var(--muted);font-size:13px;font-weight:600;padding:6px 10px}
+.reset:hover{color:var(--red)}
+
+.answer{margin-top:14px}
+.answer:first-of-type{margin-top:0}
+.answer .row{display:flex;justify-content:space-between;gap:12px;align-items:baseline}
+.answer .name{font-weight:700}
+.answer .pct{color:var(--muted);font-weight:700;white-space:nowrap}
+.answer.right .name,.answer.right .pct{color:var(--green)}
+.bar-track{height:10px;background:#26262b;border-radius:99px;margin-top:7px;overflow:hidden}
+.bar-fill{height:100%;background:var(--yellow);border-radius:99px;transition:width .4s}
+.answer.right .bar-fill{background:var(--green)}
+
+table{width:100%;border-collapse:collapse}
+td{padding:11px 4px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+td:last-child{text-align:right;font-weight:900}
+.place{color:var(--muted);display:inline-block;width:28px}
+tr:nth-child(1) .place{color:var(--yellow)}
+
+.remote-head{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;margin-bottom:0}
+.remote-head h2{margin:0}
+.status{font-size:13px;font-weight:800;color:var(--muted)}
+.remote-body{display:none;margin-top:16px}
+.remote.open .remote-body{display:block}
 .remote-row{display:flex;gap:8px;flex-wrap:wrap}
-.remote-row input{flex:1;min-width:140px;padding:11px;background:#111;color:#fff;border:1px solid #555;border-radius:9px}
-.remote-nav{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
-.remote-nav button{font-weight:900;padding:15px 8px}
-.remote-status{color:#aaa;font-weight:800;margin-top:9px}
-.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.ghost{background:#333;color:#fff}
-.ok{color:#52d273}
-.fill.right{background:#52d273}
+.remote-row input{flex:1;min-width:140px;padding:12px;background:#0f0f11;color:#fff;border:1px solid var(--line);border-radius:10px}
+.remote-row button{margin:0;background:#26262b;color:#fff}
+.remote-nav{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.remote-nav button{margin:0;padding:18px 8px;border-radius:12px;font-weight:900;background:#26262b;color:#fff}
+.remote-nav button:last-child{background:var(--yellow);color:#111}
+.muted{color:var(--muted)}
 </style>
 </head>
 <body>
 <div class="w">
-  <div class="y">ПАНЕЛЬ ВЕДУЩЕГО · {{ title|upper }}</div>
-  <div class="c">
-    <div class="row">
-      <button class="ghost" onclick="step(-1)">←</button>
+  <div class="bar">
+    <div>
+      <div class="eyebrow">ПАНЕЛЬ ВЕДУЩЕГО</div>
+      <div class="quiz-title">{{ title }}</div>
+    </div>
+    <a class="qr-link" href="/qr/{{ qid }}" target="_blank" rel="noopener">QR для участников ↗</a>
+  </div>
+
+  <div class="card">
+    <h2>РАУНД</h2>
+    <div class="round-nav">
+      <button id="prev" onclick="step(-1)" aria-label="Предыдущий раунд">←</button>
       <select id="sel" onchange="rnd()"></select>
-      <button class="ghost" onclick="step(1)">→</button>
+      <button id="next" onclick="step(1)" aria-label="Следующий раунд">→</button>
     </div>
-    <div class="row">
-      <button id="tog" onclick="act('toggle')"></button>
-      <button onclick="reset()">СБРОСИТЬ ИГРУ</button>
-      <button onclick="toggleQR()" id="qrButton">ПОКАЗАТЬ QR-КОД</button>
-      <button class="ghost" onclick="window.open('/qr/'+QID,'_blank')">QR НА ЭКРАН</button>
-      <button class="ghost" onclick="window.open('/results/'+QID,'_blank')">ТАБЛИЦА НА ЭКРАН</button>
+    <div id="q"></div>
+    <div class="stats">
+      <span class="chip">Участников <b id="players">0</b></span>
+      <span class="chip">Проголосовало <b id="voted">0</b></span>
     </div>
-    <h1 id="q"></h1>
-    <p id="m" class="muted"></p>
+    <button id="tog" class="main-btn open" onclick="act('toggle')"></button>
+    <button class="reset" onclick="reset()">Сбросить игру</button>
+  </div>
 
-    <div class="qr-card" id="qrCard" style="display:none">
-      <div class="qr-title">QR-КОД ДЛЯ УЧАСТНИКОВ</div>
-      <div class="qr-sub">Отсканируйте камерой телефона и войдите в игру</div>
-      <div id="qrcode"></div>
-      <div class="qr-url" id="qrurl"></div>
-    </div>
+  <div class="card"><h2>РЕЗУЛЬТАТЫ РАУНДА</h2><div id="res"></div></div>
+  <div class="card"><h2>ТАБЛИЦА ЛИДЕРОВ</h2><div id="lead"></div></div>
 
-    <div class="remote">
+  <div class="card remote" id="remote">
+    <div class="remote-head" onclick="document.getElementById('remote').classList.toggle('open')">
+      <h2>ПУЛЬТ СЛАЙДОВ</h2>
+      <span id="pptStatus" class="status">логин не задан</span>
+    </div>
+    <div class="remote-body">
       <div class="remote-row">
         <input id="pptLogin" placeholder="Логин пульта">
         <button onclick="savePptLogin()">ПОДКЛЮЧИТЬ</button>
         <button onclick="resetPptLogin()">СБРОСИТЬ ЛОГИН</button>
       </div>
-      <div id="pptStatus" class="remote-status">ПУЛЬТЫ: логин не задан</div>
       <div class="remote-nav">
         <button onclick="ppt('prev')">← ПРЕДЫДУЩИЙ СЛАЙД</button>
         <button onclick="ppt('next')">СЛЕДУЮЩИЙ СЛАЙД →</button>
       </div>
     </div>
   </div>
-  <div class="c"><h2>Результаты</h2><div id="res"></div></div>
-  <div class="c"><h2>Таблица лидеров</h2><div id="lead"></div></div>
 </div>
 
 <script>
 const QID={{ qid|tojson }};
 const KEY=new URLSearchParams(location.search).get("k")||"";
 const LETTERS="АБВГДЕЖЗ";
-async function publicOrigin(){
-  if(!["localhost","127.0.0.1"].includes(location.hostname))return location.origin;
-  try{const d=await(await fetch("/api/info")).json();return location.protocol+"//"+d.lan_ip+(location.port?":"+location.port:"")}
-  catch(e){return location.origin}
-}
 const esc=s=>String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const base=`/api/q/${QID}/admin`;
 let total=0,current=1;
@@ -93,30 +133,22 @@ async function load(){
   const resp=await fetch(`${base}?k=${encodeURIComponent(KEY)}`);
   if(!resp.ok)return;
   const d=await resp.json();
-  if(sel.options.length!==d.total){sel.innerHTML="";for(let i=1;i<=d.total;i++)sel.add(new Option("Раунд "+i,i))}
+  if(sel.options.length!==d.total){sel.innerHTML="";for(let i=1;i<=d.total;i++)sel.add(new Option(`Раунд ${i} из ${d.total}`,i))}
   total=d.total;current=d.round;sel.value=d.round;
+  prev.disabled=d.round<=1;next.disabled=d.round>=d.total;
   q.textContent=d.question;
+  players.textContent=d.players;voted.textContent=d.voted;
   tog.textContent=d.open?"ЗАКРЫТЬ ГОЛОСОВАНИЕ":"ОТКРЫТЬ ГОЛОСОВАНИЕ";
-  m.textContent="Участников: "+d.players+" · Проголосовало: "+d.voted;
+  tog.className="main-btn "+(d.open?"close":"open");
   const t=Math.max(1,d.voted);
-  res.innerHTML=d.answers.map((x,i)=>`<p><b class="${i===d.correct?"ok":""}">${LETTERS[i]}: ${d.counts[i]} — ${Math.round(d.counts[i]*100/t)}%${i===d.correct?" ✓":""}</b> <span class="muted">${esc(x)}</span></p><div class="bar"><div class="fill ${i===d.correct?"right":""}" style="width:${d.counts[i]*100/t}%"></div></div>`).join("");
-  lead.innerHTML=d.leaders.length?"<table>"+d.leaders.map((x,i)=>`<tr><td>${i+1}. ${esc(x.name)}</td><td><b>${x.score}</b></td></tr>`).join("")+"</table>":"<span class=muted>Пока нет участников</span>";
+  res.innerHTML=d.answers.map((x,i)=>{
+    const p=Math.round(d.counts[i]*100/t);
+    return `<div class="answer ${i===d.correct?"right":""}">
+      <div class="row"><span class="name">${LETTERS[i]}. ${esc(x)}${i===d.correct?" ✓":""}</span><span class="pct">${d.counts[i]} · ${p}%</span></div>
+      <div class="bar-track"><div class="bar-fill" style="width:${d.counts[i]*100/t}%"></div></div></div>`}).join("");
+  lead.innerHTML=d.leaders.length?"<table>"+d.leaders.map((x,i)=>`<tr><td><span class="place">${i+1}</span>${esc(x.name)}</td><td>${x.score}</td></tr>`).join("")+"</table>":"<span class=muted>Пока нет участников</span>";
 }
 setInterval(load,1000);load();
-
-/* QR для участников */
-function toggleQR(){
-  const card=document.getElementById("qrCard"),btn=document.getElementById("qrButton");
-  const show=card.style.display==="none";
-  card.style.display=show?"block":"none";
-  btn.textContent=show?"СКРЫТЬ QR-КОД":"ПОКАЗАТЬ QR-КОД";
-}
-(async function(){
-  const url=(await publicOrigin())+"/play/"+QID;
-  document.getElementById("qrurl").textContent=url;
-  if(window.QRCode)new QRCode(document.getElementById("qrcode"),{text:url,width:220,height:220,correctLevel:QRCode.CorrectLevel.M});
-  else document.getElementById("qrcode").textContent="QR-код не загрузился";
-})();
 
 /* Пульт презентаций */
 const pptLogin=document.getElementById("pptLogin"),pptStatus=document.getElementById("pptStatus");
@@ -133,7 +165,7 @@ function savePptLogin(){
 }
 function resetPptLogin(){
   activePptLogin="";localStorage.removeItem("pptLogin");pptLogin.value="";
-  pptStatus.textContent="ПУЛЬТЫ: логин не задан";pptStatus.style.color="#aaa";
+  pptStatus.textContent="логин не задан";pptStatus.style.color="";
 }
 async function ppt(command){
   const login=activePptLogin;
@@ -146,14 +178,14 @@ async function pptHeartbeat(){
 }
 async function pptStatusUpdate(){
   const login=activePptLogin;
-  if(!login){pptStatus.textContent="ПУЛЬТЫ: логин не задан";return}
+  if(!login){pptStatus.textContent="логин не задан";return}
   try{
     const r=await fetch("/api/presentation/status?login="+encodeURIComponent(login),{cache:"no-store"});
     const d=await r.json();
     if(!r.ok)throw new Error();
-    pptStatus.textContent=d.online>0?"● ПУЛЬТ ПОДКЛЮЧЕН · "+login.toUpperCase():"○ ПУЛЬТ НЕ ПОДКЛЮЧЕН · "+login.toUpperCase();
-    pptStatus.style.color=d.online>0?"#52d273":"#aaa";
-  }catch(e){pptStatus.textContent="ПУЛЬТЫ: связь с сервером…";pptStatus.style.color="#aaa"}
+    pptStatus.textContent=(d.online>0?"● подключен · ":"○ не подключен · ")+login;
+    pptStatus.style.color=d.online>0?"var(--green)":"";
+  }catch(e){pptStatus.textContent="связь с сервером…";pptStatus.style.color=""}
 }
 setInterval(pptHeartbeat,3000);setInterval(pptStatusUpdate,1500);pptHeartbeat();pptStatusUpdate();
 </script>

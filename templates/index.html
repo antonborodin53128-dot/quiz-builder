@@ -52,6 +52,7 @@
 <script>
 const app=document.getElementById("app");
 const LETTERS="АБВГДЕЖЗ";
+const RES_LABELS={question:"после каждого вопроса",round:"в конце раунда",none:"не показывать"};
 async function publicOrigin(){
   if(!["localhost","127.0.0.1"].includes(location.hostname))return location.origin;
   try{const d=await(await fetch("/api/info")).json();return location.protocol+"//"+d.lan_ip+(location.port?":"+location.port:"")}
@@ -177,7 +178,7 @@ async function detail(id){
       <button class="ghost back" onclick="location.hash='#/'">← ВСЕ КВИЗЫ</button>
       <h1>${esc(q.title)}</h1>
       <div class="muted">Раундов: ${q.rounds.length} · вопросов: ${q.rounds.reduce((n,r)=>n+r.questions.length,0)}</div>
-      <div class="muted">Результаты участникам: ${{question:"после каждого вопроса",round:"в конце раунда",none:"не показывать"}[q.show_results||"none"]}</div>
+      <div class="muted">Результаты участникам: ${RES_LABELS[q.show_results||"none"]}</div>
       <div class="links">
         <button onclick="window.open('${hostUrl}','_blank')">СТРАНИЦА ВЕДУЩЕГО</button>
         <button onclick="window.open('/qr/${id}','_blank')">ВЫВЕСТИ QR ДЛЯ УЧАСТНИКОВ</button>

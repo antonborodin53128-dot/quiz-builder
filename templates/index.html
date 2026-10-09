@@ -12,6 +12,8 @@
 .quiz{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;cursor:pointer}
 .quiz:hover{border-color:#ffd21c}
 .quiz b{font-size:20px}
+.qbtns{display:flex;gap:8px;flex-wrap:wrap}
+.qbtns button{margin:0}
 .ghost{background:#333;color:#fff}
 .danger{background:#7a2323;color:#fff}
 .round{position:relative}
@@ -81,7 +83,10 @@ async function list(){
   box.innerHTML=quizzes.length?quizzes.map(q=>`
     <div class="c quiz" onclick="location.hash='#/quiz/${q.id}'">
       <div><b>${esc(q.title)}</b><div class="muted">Раундов: ${q.rounds} · вопросов: ${q.questions}</div></div>
-      <span class="y">ОТКРЫТЬ →</span>
+      <div class="qbtns">
+        <button class="ghost" onclick="event.stopPropagation();location.hash='#/edit/${q.id}'">РЕДАКТИРОВАТЬ</button>
+        <button onclick="event.stopPropagation();location.hash='#/quiz/${q.id}'">ОТКРЫТЬ →</button>
+      </div>
     </div>`).join(""):`<div class="c muted">Пока нет ни одного квиза. Нажмите «Добавить новый».</div>`;
 }
 

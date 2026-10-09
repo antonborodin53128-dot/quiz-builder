@@ -151,7 +151,7 @@ tr:nth-child(1) .place{color:var(--yellow)}
 </div>
 
 <div class="actionbar">
-  <button id="reopen" class="reopen" onclick="act('toggle')">Открыть голосование по этому вопросу заново</button>
+  <button id="reopen" class="reopen" onclick="act('toggle')">Открыть голосование заново</button>
   <div class="actionbar-in">
     <button id="prev" class="nav" onclick="step(-1)" aria-label="Предыдущий вопрос">←</button>
     <button id="main" class="main open" onclick="mainAction()"></button>
@@ -209,7 +209,7 @@ function render(d){
   if(d.open){main.textContent="ЗАКРЫТЬ ГОЛОСОВАНИЕ";main.className="main close"}
   else if(d.done){
     if(last){main.textContent="ВОПРОСЫ ЗАКОНЧИЛИСЬ";main.className="main";main.disabled=true}
-    else{main.textContent="СЛЕДУЮЩИЙ ВОПРОС →";main.className="main next"}
+    else{main.textContent="СЛЕДУЮЩИЙ ВОПРОС";main.className="main next"}
   }else{main.textContent="ОТКРЫТЬ ГОЛОСОВАНИЕ";main.className="main open"}
   reopen.classList.toggle("show",d.done&&!d.open);
   // лидеры

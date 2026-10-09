@@ -33,6 +33,8 @@
 .url{margin-top:10px;color:#ffd21c;font-weight:700;word-break:break-all}
 .warn{color:#aaa;font-size:14px;margin-top:8px}
 .back{margin:0 0 6px}
+.radio{display:flex;align-items:center;gap:10px;padding:8px 0;cursor:pointer}
+.radio input{width:20px;height:20px;accent-color:#ffd21c;margin:0}
 .qblock{border-top:1px solid #333;margin-top:16px;padding-top:14px}
 .qblock:first-of-type{border-top:0;margin-top:0;padding-top:0}
 .qhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
@@ -91,8 +93,8 @@ const emptyRound=()=>({questions:[emptyQuestion()]});
 async function editor(id){
   if(id){
     const q=await api("/api/quizzes/"+id);
-    draft={id,title:q.title,rounds:q.rounds.map(r=>({questions:r.questions.map(x=>({question:x.question,options:[...x.options],correct:x.correct}))}))};
-  }else draft={id:null,title:"",rounds:[emptyRound()]};
+    draft={id,title:q.title,show_results:q.show_results||"none",rounds:q.rounds.map(r=>({questions:r.questions.map(x=>({question:x.question,options:[...x.options],correct:x.correct}))}))};
+  }else draft={id:null,title:"",show_results:"none",rounds:[emptyRound()]};
   renderEditor();
 }
 
@@ -102,6 +104,11 @@ function renderEditor(msg=""){
       <button class="ghost back" onclick="location.hash='#/${draft.id?"quiz/"+draft.id:""}'">← НАЗАД</button>
       <h1>${draft.id?"Редактирование квиза":"Новый квиз"}</h1>
       <input class="field" id="title" placeholder="Название квиза" maxlength="80" value="${esc(draft.title)}" oninput="draft.title=this.value">
+      <div class="setting">
+        <div class="hint" style="margin:14px 0 8px"><b>Показывать участникам результаты</b></div>
+        ${[["question","После каждого вопроса"],["round","В конце раунда"],["none","Не показывать"]].map(([v,t])=>`
+          <label class="radio"><input type="radio" name="show" value="${v}" ${draft.show_results===v?"checked":""} onchange="draft.show_results='${v}'"> ${t}</label>`).join("")}
+      </div>
     </div>
     ${draft.rounds.map((rd,i)=>`
       <div class="c round">
@@ -144,7 +151,7 @@ function removeOption(i,k,j){
   renderEditor();
 }
 async function save(){
-  const body={title:draft.title,rounds:draft.rounds};
+  const body={title:draft.title,show_results:draft.show_results,rounds:draft.rounds};
   try{
     const d=draft.id?await api("/api/quizzes/"+draft.id,"PUT",body):await api("/api/quizzes","POST",body);
     location.hash="#/quiz/"+d.id;
@@ -165,6 +172,7 @@ async function detail(id){
       <button class="ghost back" onclick="location.hash='#/'">← ВСЕ КВИЗЫ</button>
       <h1>${esc(q.title)}</h1>
       <div class="muted">Раундов: ${q.rounds.length} · вопросов: ${q.rounds.reduce((n,r)=>n+r.questions.length,0)}</div>
+      <div class="muted">Результаты участникам: ${{question:"после каждого вопроса",round:"в конце раунда",none:"не показывать"}[q.show_results||"none"]}</div>
       <div class="links">
         <button onclick="window.open('${hostUrl}','_blank')">СТРАНИЦА ВЕДУЩЕГО</button>
         <button onclick="window.open('/qr/${id}','_blank')">ВЫВЕСТИ QR ДЛЯ УЧАСТНИКОВ</button>

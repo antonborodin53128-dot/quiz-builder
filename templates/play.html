@@ -4,13 +4,20 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="stylesheet" href="/static/style.css">
+<style>
+.res{margin-top:18px;padding:16px;border:1px solid #333;border-radius:14px;background:#111}
+.res .big{font-size:22px;font-weight:900;margin-bottom:6px}
+.res .ok{color:#52d273}.res .bad{color:#ff6b6b}
+.res table{margin-top:10px}
+.res tr.me td{color:#ffd21c;font-weight:900}
+</style>
 <title>{{ title }}</title>
 </head>
 <body>
 <div class="w">
   <div class="y">{{ title|upper }}</div>
   <div id="j" class="c"><h1>Введи имя</h1><input id="n" placeholder="Имя или ник" maxlength="40"><button onclick="join()">ВОЙТИ</button></div>
-  <div id="g" class="c hide"><div id="r" class="y"></div><h1 id="q"></h1><p id="s" class="muted"></p><div id="aa"></div></div>
+  <div id="g" class="c hide"><div id="r" class="y"></div><h1 id="q"></h1><p id="s" class="muted"></p><div id="aa"></div><div id="res"></div></div>
 </div>
 <script>
 const QID={{ qid|tojson }};
@@ -20,6 +27,7 @@ let device=localStorage.getItem(KD)||(crypto.randomUUID?crypto.randomUUID():Date
 localStorage.setItem(KD,device);
 let name=localStorage.getItem(KN)||"";
 let session=localStorage.getItem(KS)||"";
+const esc=s=>String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
 const post=(url,body)=>fetch(url,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
 function show(){j.classList.toggle("hide",!!name);g.classList.toggle("hide",!name)}
 async function join(){
@@ -44,12 +52,23 @@ async function load(){
   if(!x.registered)await post(`/api/q/${QID}/join`,{device,name});
   r.textContent=x.label;
   q.textContent=x.question;
-  s.textContent=x.voted?"Ответ принят ✓":x.open?"Голосование открыто":"Ждём ведущего…";
+  s.textContent=x.result?"Голосование закрыто":x.voted?"Ответ принят ✓":x.open?"Голосование открыто":"Ждём ведущего…";
+  renderResult(x);
   aa.innerHTML="";
   if(x.open&&!x.voted)x.answers.forEach((t,i)=>{
     const b=document.createElement("button");
     b.className="a";b.textContent=LETTERS[i]+"  "+t;b.onclick=()=>vote(i);aa.appendChild(b);
   });
+}
+function renderResult(x){
+  const v=x.result;
+  if(!v){res.innerHTML="";return}
+  if(v.type==="question"){
+    const mine=v.right===null?'<div class="bad big">Вы не ответили</div>':v.right?'<div class="ok big">Верно! ✓</div>':'<div class="bad big">Неверно ✗</div>';
+    res.innerHTML=`<div class="res">${mine}<div>Правильный ответ: <b>${esc(v.correct_text)}</b></div><p class="muted">Ваши баллы: <b>${v.score}</b> · место: <b>${v.place}</b></p></div>`;
+  }else{
+    res.innerHTML=`<div class="res"><div class="big">Итоги раунда ${v.round}</div><div>Верных ответов в раунде: <b>${v.right} из ${v.of}</b></div><p class="muted">Всего баллов: <b>${v.score}</b> · ваше место: <b>${v.place}</b></p><table>${v.top.map(t=>`<tr class="${t.name===name&&t.score===v.score?"me":""}"><td>${t.place}. ${esc(t.name)}</td><td style="text-align:right"><b>${t.score}</b></td></tr>`).join("")}</table></div>`;
+  }
 }
 show();setInterval(load,1500);load();
 </script>

@@ -25,6 +25,7 @@ QUIZ_FILE = os.path.join(DATA_DIR, "quizzes.json")
 os.makedirs(DATA_DIR, exist_ok=True)
 
 MIN_OPTIONS, MAX_OPTIONS = 2, 8
+SHOW_RESULTS = ("none", "question", "round")  # не показывать / после вопроса / в конце раунда
 LETTERS = "АБВГДЕЖЗ"
 
 
@@ -33,6 +34,7 @@ LETTERS = "АБВГДЕЖЗ"
 def migrate(data):
     """Старый формат: раунд = один вопрос. Новый: раунд содержит список questions."""
     for quiz in data.values():
+        quiz.setdefault("show_results", "none")
         quiz["rounds"] = [
             r if "questions" in r else {"questions": [{"question": r["question"], "options": r["options"], "correct": r["correct"]}]}
             for r in quiz["rounds"]
@@ -97,7 +99,8 @@ def clean_quiz(x):
         rounds.append({"questions": questions})
     if not rounds:
         return None, "Добавьте хотя бы один раунд"
-    return {"title": title, "rounds": rounds}, None
+    show = x.get("show_results")
+    return {"title": title, "rounds": rounds, "show_results": show if show in SHOW_RESULTS else "none"}, None
 
 
 def flat_questions(qid):
@@ -115,15 +118,21 @@ def flat_questions(qid):
 
 def public_quiz(qid):
     q = QUIZZES[qid]
-    return {"id": qid, "title": q["title"], "rounds": q["rounds"], "host_key": q["host_key"]}
+    return {"id": qid, "title": q["title"], "rounds": q["rounds"], "host_key": q["host_key"],
+            "show_results": q.get("show_results", "none")}
 
 
 # ---------- состояние игры ----------
 
+def new_game():
+    # closed — вопросы, по которым голосование уже открывали и закрыли (после этого можно показать итог)
+    return {"r": 0, "open": False, "session": str(uuid.uuid4()), "players": {}, "votes": {}, "closed": set()}
+
+
 def game(qid):
     g = GAMES.get(qid)
     if g is None:
-        g = GAMES[qid] = {"r": 0, "open": False, "session": str(uuid.uuid4()), "players": {}, "votes": {}}
+        g = GAMES[qid] = new_game()
     # квиз могли отредактировать — не выходим за границы
     g["r"] = min(g["r"], len(flat_questions(qid)) - 1)
     return g
@@ -142,19 +151,59 @@ def check_host(qid):
         abort(403)
 
 
-def leaderboard(qid):
+def scores_by_device(qid, only=None):
+    """Очки каждого участника. only — набор номеров вопросов (например, одного раунда)."""
     F, g = flat_questions(qid), GAMES[qid]
     scores = {d: 0 for d in g["players"]}
     for r, votes in g["votes"].items():
-        if r >= len(F):
+        if r >= len(F) or (only is not None and r not in only):
             continue
         for dev, c in votes.items():
             if dev in scores and c == F[r][3]["correct"]:
                 scores[dev] += 1
+    return scores
+
+
+def leaderboard(qid):
+    g = GAMES[qid]
     return sorted(
-        ({"name": g["players"][d], "score": s} for d, s in scores.items()),
+        ({"name": g["players"][d], "score": s} for d, s in scores_by_device(qid).items()),
         key=lambda x: (-x["score"], x["name"]),
     )
+
+
+def place_of(scores, dev):
+    """Место участника: одинаковые очки — одинаковое место."""
+    return 1 + sum(1 for v in scores.values() if v > scores.get(dev, 0))
+
+
+def participant_result(qid, dev):
+    """Итог для телефона участника. None — пока показывать нечего или показ выключен."""
+    mode = QUIZZES[qid].get("show_results", "none")
+    g, F = GAMES[qid], flat_questions(qid)
+    r = g["r"]
+    if mode == "none" or g["open"] or r not in g["closed"] or dev not in g["players"]:
+        return None
+    ri, _, n, qq, _ = F[r]
+    scores = scores_by_device(qid)
+    if mode == "question":
+        your = g["votes"].get(r, {}).get(dev)
+        return {
+            "type": "question", "correct": qq["correct"], "correct_text": qq["options"][qq["correct"]],
+            "your": your, "right": None if your is None else your == qq["correct"],
+            "score": scores.get(dev, 0), "place": place_of(scores, dev),
+        }
+    # mode == "round": итоги показываем после последнего вопроса раунда
+    in_round = {i for i, f in enumerate(F) if f[0] == ri}
+    if r != max(in_round):
+        return None
+    round_scores = scores_by_device(qid, in_round)
+    top = sorted(scores.items(), key=lambda kv: (-kv[1], g["players"][kv[0]]))[:5]
+    return {
+        "type": "round", "round": ri, "right": round_scores.get(dev, 0), "of": len(in_round),
+        "score": scores.get(dev, 0), "place": place_of(scores, dev),
+        "top": [{"name": g["players"][d], "score": v, "place": place_of(scores, d)} for d, v in top],
+    }
 
 
 def lan_ip():
@@ -298,6 +347,7 @@ def state(qid):
             label=F[r][4], round=F[r][0], total=len(F), open=g["open"],
             question=qq["question"], answers=qq["options"],
             voted=d in g["votes"].get(r, {}), session=g["session"], registered=d in g["players"],
+            result=participant_result(qid, d),
         )
 
 
@@ -382,6 +432,10 @@ def admin_action(qid):
         g = game(qid)
         if a == "toggle":
             g["open"] = not g["open"]
+            if g["open"]:
+                g["closed"].discard(g["r"])
+            else:
+                g["closed"].add(g["r"])
         elif a == "round":
             try:
                 n = int(x["round"])
@@ -390,7 +444,7 @@ def admin_action(qid):
             g["r"] = max(0, min(len(flat_questions(qid)) - 1, n - 1))
             g["open"] = False
         elif a == "reset":
-            GAMES[qid] = {"r": 0, "open": False, "session": str(uuid.uuid4()), "players": {}, "votes": {}}
+            GAMES[qid] = new_game()
         else:
             return jsonify(ok=False), 400
     return jsonify(ok=True)
